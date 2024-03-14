@@ -2,23 +2,28 @@ const User = require("../Model/Schema")
 const bcrypt = require("bcrypt")
 
 const userlogin=async(req,res)=>{
+  try {
+    const { email, password } = req.body;
 
-    const {Email,Password}=req.body
-    console.log(Email,Password);
+    const user = await User.findOne({ email });
 
-    const data = await User.findOne({Email})
-
-    if(!data){
-     return  res.json("Data is null")
+    if (!user) {
+        return res.status(401).json("Invalid email or password");
     }
-  console.log(data);
 
-  if(data.Email == Email && (await bcrypt.compare(Password,data.Password)))
-  {
-    res.json("Login Successfull")
-  }else{
-    res.json("Login Failed")
-  }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (isPasswordValid) {
+        res.json("Login Successfull");
+    } else {
+        res.status(401).json("Invalid email or password");
+    }
+} catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).json("Internal server error");
+}
+   
+  
 }
 
 module.exports = userlogin

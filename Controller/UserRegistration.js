@@ -1,49 +1,58 @@
-const User = require("../Model/Schema")
-const bcrypt =require("bcrypt")
-const JWT = require("jsonwebtoken")
+const User = require("../Model/Schema");
+const bcrypt = require("bcrypt");
+const JWT = require("jsonwebtoken");
 
-const userregistration =async(req,res)=>{
+const userregistration = async (req, res) => {
+    try {
+        const { FirstName, SecondName, Email, Password } = req.body;
 
-    const {FirstName,SecondName,Email,Password}=req.body
+        // Check if user already exists
+        const existdata = await User.findOne({ Email });
+        if (existdata) {
+            return res.json("User Already Exists");
+        }
 
-       const salt = bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(Password,parseInt(salt))
+        // Check password length
+        if (Password.length < 6) {
+            return res.json("Enter At Least 6 Characters for Password");
+        }
 
-    const existdata = await User.findOne({Password})
-    if(existdata){
-        res.json("User Already Exist")
-    }
+        // Check for missing inputs
+        if (!FirstName || !SecondName || !Email || !Password) {
+            return res.json("Inputs Are Missing");
+        }
 
-    if(Password.length<6){
-        res.json("Enter Atleast 6 Characters")
-    }
+        // Generate salt and hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(Password, salt);
 
-  if(!FirstName || !SecondName || !Email || !Password){
-    
-    res.json("Inputs Are Missing")
-
-  }else{
-    const userCreate = await User.create({
+        // Create new user
+        const userCreate = await User.create({
             FirstName,
             SecondName,
             Email,
-            Password:hashedPassword  
-    })
-    res.json({
-        FirstName:userCreate.FirstName,
-        SecondName:userCreate.SecondName,
-        Email:userCreate.Email,
-        Password:userCreate.Password,
-        Token:tokengenerate(userCreate._id)
-        
-    })
- }
-}
+            Password: hashedPassword
+        });
 
-const tokengenerate =(id)=>{
-   return JWT.sign({id},`${process.env.JWT_SECRET}`,{
-        expiresIn:"1d"
-    })
-}
+        // Generate JWT token
+        const token = tokengenerate(userCreate._id);
 
-module.exports = userregistration
+        res.json({
+            FirstName: userCreate.FirstName,
+            SecondName: userCreate.SecondName,
+            Email: userCreate.Email,
+            Token: token
+        });
+    } catch (error) {
+        console.error("An error occurred:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+const tokengenerate = (id) => {
+    return JWT.sign({ id }, `${process.env.JWT_SECRET}`, {
+        expiresIn: "1d"
+    });
+};
+
+module.exports = userregistration;
